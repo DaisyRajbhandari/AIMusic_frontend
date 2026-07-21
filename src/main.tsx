@@ -1,37 +1,48 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
-import "./App.css";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
+import { toast } from "sonner";
+
+import App from "./App.tsx";
+import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+
+import "./index.css";
+import "./App.css";
 import "./analytics/posthog";
 import "./analytics/ga4";
 
-import { toast } from "sonner";
-
-// Handle dynamic import errors (like missing chunks due to new deployments)
-window.addEventListener('vite:preloadError', () => {
-    window.location.reload();
+// Handle dynamic import errors, such as missing chunks after deployment.
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
 });
 
-// Register service worker for PWA
-const updateSW = registerSW({ 
-    onNeedRefresh() {
-        toast.message("Update Available 🚀", {
-            description: "A new version of SoLuna is ready.",
-            action: {
-                label: "Update Now",
-                onClick: () => updateSW(true)
-            },
-            duration: Infinity,
-        });
-    },
+// Register the Progressive Web App service worker.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    toast.message("Update Available 🚀", {
+      description: "A new version of SoLuna is ready.",
+      action: {
+        label: "Update Now",
+        onClick: () => updateSW(true),
+      },
+      duration: Infinity,
+    });
+  },
 });
-createRoot(document.getElementById("root")!).render(
-    <BrowserRouter>
-        <ThemeProvider>
-            <App />
-        </ThemeProvider>
-    </BrowserRouter>
+
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error('The root element with id "root" was not found.');
+}
+
+createRoot(rootElement).render(
+  <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ThemeProvider>
+  </BrowserRouter>,
 );

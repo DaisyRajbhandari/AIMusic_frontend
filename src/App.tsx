@@ -26,6 +26,7 @@ const EarTrainingPage = lazy(() => import("./pages/EarTrainingPage"));
 const JamPage = lazy(() => import("./pages/JamPage"));
 const MidiComposerPage = lazy(() => import("./pages/MidiComposerPage"));
 const GenerationPage = lazy(() => import("./pages/GenerationPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
 const BlogListPage = lazy(() => import("./pages/BlogListPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -95,11 +96,22 @@ const App = () => {
 
         <Toaster />
         <Sonner />
-        <ErrorBoundary>
-          <AnimatePresence mode="wait">
-            <PostHogPageView />
-            <GAPageView />
-            <Routes location={location} key={location.pathname}>
+       <ErrorBoundary>
+  <PostHogPageView />
+  <GAPageView />
+
+  <AnimatePresence mode="wait">
+    <Routes location={location} key={location.pathname}>
+              <Route
+  path="/login"
+  element={
+    <Suspense fallback={<RouteFallback />}>
+      <PageWrapper>
+        <LoginPage />
+      </PageWrapper>
+    </Suspense>
+  }
+/>
               <Route
                 path="/"
                 element={
@@ -112,6 +124,7 @@ const App = () => {
                   </Suspense>
                 }
               />
+              
               <Route
                 path="/fretboard"
                 element={
