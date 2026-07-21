@@ -1,18 +1,27 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Sparkles, Download, Play, Pause, Wand2, 
-  CheckCircle, RefreshCw, Clock, Loader2, FileAudio, 
-  Music, Music2, Quote 
+import {
+  Sparkles,
+  Download,
+  RefreshCw,
+  Loader2,
+  FileAudio,
+  Music2,
+  Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { usePageMetadata } from "@/hooks/usePageMetadata";
-import { SEOContent, Breadcrumb } from "@/components/SEOContent";
+import { Breadcrumb } from "@/components/SEOContent";
 import RelatedTools from "@/components/RelatedTools";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PROMPT_GENRES = [
   {
@@ -46,6 +55,8 @@ const PROMPT_GENRES = [
 ];
 
 export default function GenerationPage() {
+    const navigate = useNavigate();
+  const { user, logout } = useAuth();
   usePageMetadata({
     title: "AI Prompt Composer | SoLuna - Generating Your Audio",
     description: "Watch your text prompt get transformed into structured midi arrangements and pristine MP3 audio.",
@@ -58,6 +69,13 @@ export default function GenerationPage() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const prompt = searchParams.get("prompt") || "";
+    const handleLogout = () => {
+    logout();
+
+    navigate("/login", {
+      replace: true,
+    });
+  };
 
   // Find matching genre track based on prompt keywords
   const matchedTrack = useMemo(() => {
@@ -201,8 +219,32 @@ export default function GenerationPage() {
     <div className="min-h-screen bg-[#030303] relative overflow-hidden selection:bg-white/10">
       <main className="container mx-auto px-4 md:px-6 pt-8 md:pt-12 pb-16 relative z-10">
         <div className="max-w-5xl mx-auto">
+  <div className="mb-6 flex items-center justify-between gap-4">
+    <div className="min-w-0">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        Signed in as
+      </p>
+
+      <p className="truncate text-sm font-medium text-white">
+        {user?.name ||
+          user?.full_name ||
+          user?.fullname ||
+          user?.email}
+      </p>
+    </div>
+
+    <Button
+      type="button"
+      variant="outline"
+      onClick={handleLogout}
+      className="shrink-0 rounded-xl border-white/10 bg-white/[0.03] text-white hover:bg-white/10"
+    >
+      Log out
+    </Button>
+  </div>
           {/* Breadcrumb */}
-          <Breadcrumb items={[
+          <Breadcrumb
+           items={[
             { name: "Home", url: "https://SoLuna.studio/" },
             { name: "AI Generation", url: "https://SoLuna.studio/generation" }
           ]} />

@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -281,18 +282,20 @@ const App = () => {
                   </Suspense>
                 }
               />
-              <Route
-                path="/generation"
-                element={
-                  <Suspense fallback={<RouteFallback />}>
-                    <PageWrapper>
-                      <main id="main-content">
-                        <GenerationPage />
-                      </main>
-                    </PageWrapper>
-                  </Suspense>
-                }
-              />
+             <Route
+  path="/generation"
+  element={
+    <ProtectedRoute>
+      <Suspense fallback={<RouteFallback />}>
+        <PageWrapper>
+          <main id="main-content">
+            <GenerationPage />
+          </main>
+        </PageWrapper>
+      </Suspense>
+    </ProtectedRoute>
+  }
+/>
               <Route
                 path="/blog"
                 element={
