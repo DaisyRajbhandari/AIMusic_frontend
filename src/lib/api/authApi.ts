@@ -1,8 +1,11 @@
 import type {
   AuthenticationResponse,
+  ForgotPasswordRequestData,
   LoginCredentials,
   MeResponse,
+  MessageResponse,
   RegisterData,
+  ResetPasswordData,
 } from "@/types/auth";
 
 const configuredAuthApiUrl = import.meta.env.VITE_AUTH_API_URL;
@@ -117,6 +120,103 @@ export async function registerUser(
 
   return result;
 }
+
+export async function requestPasswordResetCode(
+  requestData: ForgotPasswordRequestData,
+): Promise<MessageResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${AUTH_API_BASE_URL}/forgot-password/request`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: requestData.email.trim(),
+        }),
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Password reset request connection error:",
+      error,
+    );
+
+    throw new Error(
+      "Unable to connect to the authentication backend. Check that the FastAPI server is running.",
+    );
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(
+      response,
+      `Password reset request failed with status ${response.status}.`,
+    );
+
+    throw new Error(message);
+  }
+
+  const result = (await response.json()) as MessageResponse;
+
+  return {
+    message:
+      result.message ||
+      "If an account exists for that email, a reset code has been sent.",
+  };
+}
+
+export async function resetPassword(
+  resetData: ResetPasswordData,
+): Promise<MessageResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${AUTH_API_BASE_URL}/forgot-password/reset`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: resetData.email.trim(),
+          code: resetData.code.trim(),
+          newPassword: resetData.newPassword,
+        }),
+      },
+    );
+  } catch (error) {
+    console.error(
+      "Password reset connection error:",
+      error,
+    );
+
+    throw new Error(
+      "Unable to connect to the authentication backend. Check that the FastAPI server is running.",
+    );
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(
+      response,
+      `Password reset failed with status ${response.status}.`,
+    );
+
+    throw new Error(message);
+  }
+
+  const result = (await response.json()) as MessageResponse;
+
+  return {
+    message:
+      result.message ||
+      "Your password has been reset successfully.",
+  };
+}
+
 export async function getCurrentUser(
   accessToken: string,
 ): Promise<MeResponse> {

@@ -225,14 +225,18 @@ const LoginPage = () => {
                   >
                     Password
                   </label>
-
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    className="text-xs font-medium text-violet-300 transition hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Forgot password?
-                  </button>
+<button
+  type="button"
+  disabled={isSubmitting}
+  onClick={() =>
+    navigate("/forgot-password", {
+      state: location.state,
+    })
+  }
+  className="text-xs font-medium text-violet-300 transition hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  Forgot password?
+</button>
                 </div>
 
                 <input

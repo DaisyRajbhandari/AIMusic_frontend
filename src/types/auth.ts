@@ -28,6 +28,20 @@ export interface RegisterData {
   password: string;
 }
 
+export interface ForgotPasswordRequestData {
+  email: string;
+}
+
+export interface ResetPasswordData {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
 export interface AuthenticationResponse {
   message?: string;
   access_token: string;

@@ -29,6 +29,8 @@ const MidiComposerPage = lazy(() => import("./pages/MidiComposerPage"));
 const GenerationPage = lazy(() => import("./pages/GenerationPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"),
+);
 const BlogListPage = lazy(() => import("./pages/BlogListPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -120,6 +122,16 @@ const App = () => {
     <Suspense fallback={<RouteFallback />}>
       <PageWrapper>
         <RegisterPage />
+      </PageWrapper>
+    </Suspense>
+  }
+/>
+<Route
+  path="/forgot-password"
+  element={
+    <Suspense fallback={<RouteFallback />}>
+      <PageWrapper>
+        <ForgotPasswordPage />
       </PageWrapper>
     </Suspense>
   }
