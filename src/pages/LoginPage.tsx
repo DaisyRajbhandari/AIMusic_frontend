@@ -270,13 +270,17 @@ const LoginPage = () => {
             </form>
 
             <div className="mt-8 border-t border-white/10 pt-6 text-center">
-              <p className="text-sm text-white/50">
-                New to the platform?{" "}
-                <span className="font-medium text-white/80">
-                  Account registration will be connected next.
-                </span>
-              </p>
-            </div>
+  <p className="text-sm text-white/50">
+    New to the platform?{" "}
+    <Link
+      to="/register"
+      state={location.state}
+      className="font-medium text-violet-300 transition hover:text-violet-200"
+    >
+      Create an account
+    </Link>
+  </p>
+</div>
           </div>
         </div>
       </section>

@@ -20,9 +20,19 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegisterData {
+  fullName: string;
+  email: string;
+  age: string;
+  gender: string;
+  password: string;
+}
+
 export interface AuthenticationResponse {
+  message?: string;
   access_token: string;
   token_type?: string;
+  session_type?: "user" | "admin";
   user: AuthUser;
 }
 

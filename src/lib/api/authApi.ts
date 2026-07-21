@@ -2,6 +2,7 @@ import type {
   AuthenticationResponse,
   LoginCredentials,
   MeResponse,
+  RegisterData,
 } from "@/types/auth";
 
 const configuredAuthApiUrl = import.meta.env.VITE_AUTH_API_URL;
@@ -69,7 +70,53 @@ export async function loginUser(
 
   return result;
 }
+export async function registerUser(
+  registrationData: RegisterData,
+): Promise<AuthenticationResponse> {
+  let response: Response;
 
+  try {
+    response = await fetch(`${AUTH_API_BASE_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName: registrationData.fullName.trim(),
+        email: registrationData.email.trim(),
+        age: registrationData.age.trim(),
+        gender: registrationData.gender.trim(),
+        password: registrationData.password,
+      }),
+    });
+  } catch (error) {
+    console.error("Registration connection error:", error);
+
+    throw new Error(
+      "Unable to connect to the authentication backend. Check that the FastAPI server is running.",
+    );
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(
+      response,
+      `Registration failed with status ${response.status}.`,
+    );
+
+    throw new Error(message);
+  }
+
+  const result =
+    (await response.json()) as AuthenticationResponse;
+
+  if (!result.access_token || !result.user) {
+    throw new Error(
+      "The registration response did not include an access token and user information.",
+    );
+  }
+
+  return result;
+}
 export async function getCurrentUser(
   accessToken: string,
 ): Promise<MeResponse> {

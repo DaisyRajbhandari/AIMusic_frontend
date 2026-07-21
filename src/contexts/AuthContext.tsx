@@ -11,12 +11,14 @@ import {
 import {
   getCurrentUser,
   loginUser,
+  registerUser,
 } from "@/lib/api/authApi";
 
 import type {
   AuthenticationResponse,
   AuthUser,
   LoginCredentials,
+  RegisterData,
 } from "@/types/auth";
 
 const USER_SESSION_KEY = "synestraUserSession";
@@ -42,6 +44,11 @@ interface AuthContextValue {
     credentials: LoginCredentials,
     rememberMe?: boolean,
   ) => Promise<AuthUser>;
+
+  register: (
+  registrationData: RegisterData,
+  rememberMe?: boolean,
+) => Promise<AuthUser>;
 
   applyAuthentication: (
     authentication: AuthenticationResponse,
@@ -220,6 +227,21 @@ export function AuthProvider({
     [applyAuthentication],
   );
 
+  const register = useCallback(
+  async (
+    registrationData: RegisterData,
+    rememberMe = true,
+  ): Promise<AuthUser> => {
+    const authentication =
+      await registerUser(registrationData);
+
+    applyAuthentication(authentication, rememberMe);
+
+    return authentication.user;
+  },
+  [applyAuthentication],
+);
+
   const refreshSession =
     useCallback(async (): Promise<AuthUser | null> => {
       const storedAuthentication =
@@ -316,26 +338,28 @@ export function AuthProvider({
     };
   }, [initialAuthentication.token]);
 
-  const contextValue = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      accessToken,
-      isLoggedIn: Boolean(user && accessToken),
-      isCheckingAuthentication,
-      login,
-      applyAuthentication,
-      refreshSession,
-      logout,
-    }),
+ const contextValue = useMemo<AuthContextValue>(
+  () => ({
+    user,
+    accessToken,
+    isLoggedIn: Boolean(user && accessToken),
+    isCheckingAuthentication,
+    login,
+    register,
+    applyAuthentication,
+    refreshSession,
+    logout,
+  }),
     [
-      user,
-      accessToken,
-      isCheckingAuthentication,
-      login,
-      applyAuthentication,
-      refreshSession,
-      logout,
-    ],
+  user,
+  accessToken,
+  isCheckingAuthentication,
+  login,
+  register,
+  applyAuthentication,
+  refreshSession,
+  logout,
+],
   );
 
   return (
