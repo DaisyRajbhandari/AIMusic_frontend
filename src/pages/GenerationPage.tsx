@@ -464,7 +464,7 @@ export default function GenerationPage() {
 
           {/* Related tools */}
           <div className="mt-16">
-            <RelatedTools currentTool="/generation" />
+            <RelatedTools />
           </div>
         </div>
       </main>
