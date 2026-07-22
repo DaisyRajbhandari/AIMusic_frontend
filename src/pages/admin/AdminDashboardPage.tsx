@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
+
 import {
   useCallback,
   useEffect,
@@ -34,7 +33,53 @@ const EMPTY_DASHBOARD: ResearchDashboardData = {
   taskSeries: {},
   batches: [],
 };
+interface ChartSeriesItem {
+  key: string;
+  label: string;
+  color: string;
+}
 
+type ChartDataRow = Record<string, unknown>;
+
+interface MetricCardProps {
+  label: string;
+  value: string | number;
+  description: string;
+}
+
+interface SectionHeadingProps {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}
+
+interface EmptyPanelProps {
+  title: string;
+  message: string;
+}
+
+interface LoadingPanelProps {
+  message: string;
+}
+
+interface ErrorPanelProps {
+  message: string;
+  onRetry?: () => void;
+}
+
+interface LineChartProps {
+  data: ChartDataRow[];
+  xKey: string;
+  series: ChartSeriesItem[];
+  emptyMessage: string;
+}
+
+interface ProtectedAudioPlayerProps {
+  filePath?: string | null;
+  accessToken: string | null;
+  onUnauthorized: () => void;
+}
 const COHERENCE_FIELDS = [
   ["overallScore", "Overall Coherence"],
   ["chordAdherence", "Chord Adherence"],
@@ -45,15 +90,15 @@ const COHERENCE_FIELDS = [
   ["transitionQuality", "Transition Quality"],
   ["emotionalAlignment", "Emotional Alignment"],
   ["promptAlignment", "Prompt Alignment"],
-];
+] as const;
 
-const LOSS_SERIES = [
+const LOSS_SERIES: ChartSeriesItem[] = [
   { key: "trainLoss", label: "Train loss", color: "#38bdf8" },
   { key: "evalLoss", label: "Evaluation loss", color: "#f472b6" },
   { key: "bestEvalLoss", label: "Best evaluation loss", color: "#a78bfa" },
 ];
 
-const PERPLEXITY_SERIES = [
+const PERPLEXITY_SERIES: ChartSeriesItem[] = [
   { key: "trainPerplexity", label: "Train perplexity", color: "#22c55e" },
   { key: "evalPerplexity", label: "Evaluation perplexity", color: "#f59e0b" },
   {
@@ -63,39 +108,70 @@ const PERPLEXITY_SERIES = [
   },
 ];
 
-function isNumber(value) {
-  return typeof value === "number" && Number.isFinite(value);
+function isNumber(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  );
 }
 
-function formatMetric(value, digits = 3) {
-  return isNumber(value) ? value.toFixed(digits) : "—";
+function formatMetric(
+  value: unknown,
+  digits = 3,
+): string {
+  return isNumber(value)
+    ? value.toFixed(digits)
+    : "—";
 }
 
-function formatParameterCount(value) {
-  if (!isNumber(value)) return "—";
+function formatParameterCount(
+  value: unknown,
+): string {
+  if (!isNumber(value)) {
+    return "—";
+  }
 
   if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`;
+    return `${(
+      value / 1_000_000_000
+    ).toFixed(2)}B`;
   }
 
   if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
+    return `${(
+      value / 1_000_000
+    ).toFixed(2)}M`;
   }
 
   if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`;
+    return `${(
+      value / 1_000
+    ).toFixed(2)}K`;
   }
 
   return String(value);
 }
 
-function formatDuration(totalSeconds) {
-  if (!isNumber(totalSeconds)) return "—";
+function formatDuration(
+  totalSeconds: unknown,
+): string {
+  if (!isNumber(totalSeconds)) {
+    return "—";
+  }
 
-  const roundedSeconds = Math.round(totalSeconds);
-  const hours = Math.floor(roundedSeconds / 3600);
-  const minutes = Math.floor((roundedSeconds % 3600) / 60);
-  const seconds = roundedSeconds % 60;
+  const roundedSeconds =
+    Math.round(totalSeconds);
+
+  const hours = Math.floor(
+    roundedSeconds / 3600,
+  );
+
+  const minutes = Math.floor(
+    (roundedSeconds % 3600) / 60,
+  );
+
+  const seconds =
+    roundedSeconds % 60;
 
   if (hours > 0) {
     return `${hours}h ${minutes}m ${seconds}s`;
@@ -108,9 +184,22 @@ function formatDuration(totalSeconds) {
   return `${seconds}s`;
 }
 
-function formatDate(value) {
-  if (value === null || value === undefined || value === "") {
+function formatDate(
+  value: unknown,
+): string {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return "—";
+  }
+
+  if (
+    typeof value !== "number" &&
+    typeof value !== "string"
+  ) {
+    return String(value);
   }
 
   const date =
@@ -125,15 +214,30 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
-function formatLabel(value) {
+function formatLabel(
+  value: unknown,
+): string {
   return String(value || "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(
+      /([a-z0-9])([A-Z])/g,
+      "$1 $2",
+    )
     .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase(),
+    );
 }
 
-function formatValue(value) {
-  if (value === null || value === undefined || value === "") {
+function formatValue(
+  value: unknown,
+): string {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return "Not available";
   }
 
@@ -144,34 +248,61 @@ function formatValue(value) {
   return String(value);
 }
 
-function toPercentage(value) {
-  if (!isNumber(value)) return null;
+function toPercentage(
+  value: unknown,
+): number | null {
+  if (!isNumber(value)) {
+    return null;
+  }
 
-  const percentage = value <= 1 ? value * 100 : value;
-  return Math.max(0, Math.min(100, percentage));
+  const percentage =
+    value <= 1 ? value * 100 : value;
+
+  return Math.max(
+    0,
+    Math.min(100, percentage),
+  );
 }
 
-function buildFileUrl(filePath) {
-  if (!filePath) return "";
+function buildFileUrl(
+  filePath?: string | null,
+): string {
+  if (!filePath) {
+    return "";
+  }
 
   if (/^https?:\/\//i.test(filePath)) {
     return filePath;
   }
 
-  const cleanBaseUrl = AUTH_API_BASE_URL.replace(/\/$/, "");
-  const cleanPath = String(filePath).replace(/^\//, "");
+  const cleanBaseUrl =
+    AUTH_API_BASE_URL.replace(/\/$/, "");
+
+  const cleanPath =
+    filePath.replace(/^\//, "");
 
   return `${cleanBaseUrl}/${cleanPath}`;
 }
 
-function getStructureSections(structurePlan) {
+function getStructureSections(
+  structurePlan: unknown,
+): unknown[] {
   if (Array.isArray(structurePlan)) {
     return structurePlan;
   }
 
-  if (!structurePlan || typeof structurePlan !== "object") {
+  if (
+    !structurePlan ||
+    typeof structurePlan !== "object"
+  ) {
     return [];
   }
+
+  const structureObject =
+    structurePlan as Record<
+      string,
+      unknown
+    >;
 
   const preferredKeys = [
     "sections",
@@ -182,15 +313,20 @@ function getStructureSections(structurePlan) {
   ];
 
   for (const key of preferredKeys) {
-    if (Array.isArray(structurePlan[key])) {
-      return structurePlan[key];
+    const value = structureObject[key];
+
+    if (Array.isArray(value)) {
+      return value;
     }
   }
 
-  const firstArray = Object.values(structurePlan).find(Array.isArray);
-  return firstArray || [];
-}
+  const firstArray =
+    Object.values(
+      structureObject,
+    ).find(Array.isArray);
 
+  return firstArray ?? [];
+}
 function MetricCard({ label, value, description }) {
   return (
     <article className="admin-metric-card">
