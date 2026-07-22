@@ -26,7 +26,7 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "logo.svg", "logo.png", "robots.txt"],
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       manifest: {
         name: "SoLuna Studio",
