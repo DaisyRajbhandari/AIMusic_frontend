@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import App from "./App.tsx";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 import "./index.css";
@@ -38,10 +39,17 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
-  <BrowserRouter>
+  <BrowserRouter
+  future={{
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  }}
+>
     <ThemeProvider>
       <AuthProvider>
-        <App />
+        <AdminAuthProvider>
+          <App />
+        </AdminAuthProvider>
       </AuthProvider>
     </ThemeProvider>
   </BrowserRouter>,

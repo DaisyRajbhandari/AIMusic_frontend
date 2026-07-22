@@ -137,7 +137,11 @@ export default function GenerationPage() {
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [prompt]);
+  }, [
+    prompt,
+    generationSteps.length,
+    toast,
+  ]);
 
   // Audio playback controls
   const togglePlay = () => {

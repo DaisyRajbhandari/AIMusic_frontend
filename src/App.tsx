@@ -6,7 +6,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Routes, Route, useLocation } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import Lenis from "lenis";
 import PostHogPageView from "@/analytics/PageView";
@@ -31,6 +36,14 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"),
 );
+const AdminLoginPage = lazy(
+  () => import("./pages/admin/AdminLoginPage"),
+);
+
+const AdminDashboardPage = lazy(
+  () => import("./pages/admin/AdminDashboardPage"),
+);
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 const BlogListPage = lazy(() => import("./pages/BlogListPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -124,6 +137,50 @@ const App = () => {
         <RegisterPage />
       </PageWrapper>
     </Suspense>
+  }
+/>
+
+<Route
+  path="/admin/login"
+  element={
+    <Suspense fallback={<RouteFallback />}>
+      <PageWrapper>
+        <AdminLoginPage />
+      </PageWrapper>
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/admin/dashboard"
+  element={
+    <Suspense fallback={<RouteFallback />}>
+      <AdminProtectedRoute>
+        <PageWrapper>
+          <AdminDashboardPage />
+        </PageWrapper>
+      </AdminProtectedRoute>
+    </Suspense>
+  }
+/>
+
+<Route
+  path="/admin"
+  element={
+    <Navigate
+      to="/admin/dashboard"
+      replace
+    />
+  }
+/>
+
+<Route
+  path="/admin/*"
+  element={
+    <Navigate
+      to="/admin/dashboard"
+      replace
+    />
   }
 />
 <Route
