@@ -34,3 +34,8 @@ ENV/
 env/
 cache/
 *.pkl
+
+backend/generated/*.mid
+backend/generated/*.wav
+backend/generated/*.mp3
+!backend/generated/.gitkeep

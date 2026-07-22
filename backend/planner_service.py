@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from audio_renderer import generate_audio
 from midi_generator import generate_midi
 
 
@@ -17,7 +18,7 @@ GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="SoLuna Planner Service",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -35,7 +36,9 @@ app.add_middleware(
 
 app.mount(
     "/files",
-    StaticFiles(directory=str(GENERATED_DIR)),
+    StaticFiles(
+        directory=str(GENERATED_DIR),
+    ),
     name="generated-files",
 )
 
@@ -47,8 +50,11 @@ class GeneratePlanRequest(BaseModel):
 @app.get("/")
 def home():
     return {
-        "message": "SoLuna planner service is running",
-        "version": "2.0.0",
+        "message": (
+            "SoLuna planner service "
+            "is running"
+        ),
+        "version": "3.0.0",
     }
 
 
@@ -56,7 +62,12 @@ def home():
 def health():
     return {
         "status": "ok",
-        "generated_directory": str(GENERATED_DIR),
+        "generated_directory": str(
+            GENERATED_DIR
+        ),
+        "midi_generation": True,
+        "audio_generation": True,
+        "audio_format": "wav",
     }
 
 
@@ -76,59 +87,90 @@ def generate_plan(
     try:
         midi_result = generate_midi(
             prompt=prompt,
-            output_directory=GENERATED_DIR,
+            output_directory=(
+                GENERATED_DIR
+            ),
+        )
+
+        audio_result = generate_audio(
+            prompt=prompt,
+            output_directory=(
+                GENERATED_DIR
+            ),
         )
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"MIDI generation failed: {error}",
+            detail=(
+                "Music generation failed: "
+                f"{error}"
+            ),
         ) from error
 
-    filename = str(midi_result["filename"])
+    midi_filename = str(
+        midi_result["filename"]
+    )
+
+    audio_filename = str(
+        audio_result["filename"]
+    )
+
     midi_url = str(
         request.url_for(
             "generated-files",
-            path=filename,
+            path=midi_filename,
         )
     )
 
-    sections = midi_result["sections"]
+    audio_url = str(
+        request.url_for(
+            "generated-files",
+            path=audio_filename,
+        )
+    )
 
-    structured_sections = []
+    descriptions = {
+        "Intro": (
+            "Establish the key, harmonic "
+            "palette, and primary melodic "
+            "motif."
+        ),
+        "Build": (
+            "Add rhythmic activity, bass "
+            "movement, and fuller harmony."
+        ),
+        "Climax": (
+            "Use the complete arrangement "
+            "with the highest melodic and "
+            "rhythmic intensity."
+        ),
+        "Outro": (
+            "Reduce the arrangement and "
+            "resolve the main harmonic "
+            "progression."
+        ),
+    }
 
-    for section in sections:
-        section_name = str(section["name"])
-        bars = int(section["bars"])
-
-        descriptions = {
-            "Intro": (
-                "Establish the key, harmonic palette, "
-                "and primary melodic motif."
+    structured_sections = [
+        {
+            "name": str(
+                section["name"]
             ),
-            "Build": (
-                "Add rhythmic activity, bass movement, "
-                "and fuller harmony."
+            "bars": int(
+                section["bars"]
             ),
-            "Climax": (
-                "Use the complete arrangement with the "
-                "highest melodic and rhythmic intensity."
-            ),
-            "Outro": (
-                "Reduce the arrangement and resolve the "
-                "main harmonic progression."
+            "description": descriptions.get(
+                str(section["name"]),
+                (
+                    "Continue the generated "
+                    "arrangement."
+                ),
             ),
         }
-
-        structured_sections.append(
-            {
-                "name": section_name,
-                "bars": bars,
-                "description": descriptions.get(
-                    section_name,
-                    "Continue the generated arrangement.",
-                ),
-            }
-        )
+        for section in midi_result[
+            "sections"
+        ]
+    ]
 
     return {
         "music_spec": {
@@ -137,45 +179,95 @@ def generate_plan(
             "genre": midi_result["genre"],
             "tempo": midi_result["tempo"],
             "key": midi_result["key"],
-            "instrumentation": midi_result[
-                "instrumentation"
+            "instrumentation": (
+                midi_result[
+                    "instrumentation"
+                ]
+            ),
+            "totalBars": midi_result[
+                "total_bars"
             ],
-            "totalBars": midi_result["total_bars"],
+            "audioDurationSeconds": (
+                audio_result[
+                    "duration_seconds"
+                ]
+            ),
+            "audioSampleRate": (
+                audio_result[
+                    "sample_rate"
+                ]
+            ),
         },
         "structured_plan": {
-            "sections": structured_sections,
+            "sections": (
+                structured_sections
+            ),
         },
         "routing": {
-            "harmony": "rule_based_harmony_generator",
-            "melody": "motif_melody_generator",
-            "bass": "root_fifth_bass_generator",
-            "rhythm": "pattern_drum_generator",
+            "harmony": (
+                "rule_based_"
+                "harmony_generator"
+            ),
+            "melody": (
+                "motif_melody_generator"
+            ),
+            "bass": (
+                "root_fifth_"
+                "bass_generator"
+            ),
+            "rhythm": (
+                "pattern_drum_generator"
+            ),
+            "audio": (
+                "standard_library_"
+                "wav_synthesizer"
+            ),
         },
         "critic_trace": [
             {
-                "stage": "prompt-analysis",
+                "stage": (
+                    "prompt-analysis"
+                ),
                 "status": "completed",
                 "message": (
-                    "Mood, genre, tempo, key, and "
-                    "instrumentation were derived from "
-                    "the prompt."
+                    "Mood, genre, tempo, "
+                    "key, and instrumentation "
+                    "were derived from the "
+                    "prompt."
                 ),
             },
             {
-                "stage": "structure-planning",
+                "stage": (
+                    "structure-planning"
+                ),
                 "status": "completed",
                 "message": (
-                    "Intro, Build, Climax, and Outro "
-                    "sections were assembled."
+                    "Intro, Build, Climax, "
+                    "and Outro sections were "
+                    "assembled."
                 ),
             },
             {
-                "stage": "midi-generation",
+                "stage": (
+                    "midi-generation"
+                ),
                 "status": "completed",
                 "message": (
-                    "Harmony, melody, bass, and drum "
-                    "tracks were written to a Standard "
+                    "Harmony, melody, bass, "
+                    "and drum tracks were "
+                    "written to a Standard "
                     "MIDI File."
+                ),
+            },
+            {
+                "stage": (
+                    "audio-rendering"
+                ),
+                "status": "completed",
+                "message": (
+                    "The arrangement was "
+                    "synthesized and written "
+                    "to a PCM WAV file."
                 ),
             },
         ],
@@ -195,6 +287,6 @@ def generate_plan(
         ],
         "midi_file_path": midi_url,
         "midi_download_url": midi_url,
-        "audio_file_path": None,
-        "audio_download_url": None,
+        "audio_file_path": audio_url,
+        "audio_download_url": audio_url,
     }
