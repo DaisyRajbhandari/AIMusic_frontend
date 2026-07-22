@@ -9,9 +9,24 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { AUTH_API_BASE_URL } from "@/lib/api/authApi";
+import {
+  getAdminGenerations,
+  getGenerationAnalysis,
+  getResearchDashboard,
+  getTrainingRuns,
+  isAdminAuthorizationError,
+} from "@/lib/api/adminDashboardApi";
+
+import type {
+  AdminGeneration,
+  GenerationAnalysis,
+  ResearchDashboardData,
+  TrainingRun,
+} from "@/types/adminDashboard";
+
 import "./AdminDashboard.css";
 
-const EMPTY_DASHBOARD = {
+const EMPTY_DASHBOARD: ResearchDashboardData = {
   run: null,
   summary: null,
   epochs: [],
@@ -530,110 +545,149 @@ function AdminDashboardPage() {
     logout();
     navigate("/admin/login", { replace: true });
   }, [logout, navigate]);
-  const [trainingRuns, setTrainingRuns] = useState([]);
-  const [selectedRunId, setSelectedRunId] = useState("");
-  const [dashboardData, setDashboardData] = useState(EMPTY_DASHBOARD);
-  const [isLoadingRuns, setIsLoadingRuns] = useState(true);
-  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
-  const [dashboardError, setDashboardError] = useState("");
+  const [trainingRuns, setTrainingRuns] =
+    useState<TrainingRun[]>([]);
 
-  const [generations, setGenerations] = useState([]);
-  const [selectedGenerationId, setSelectedGenerationId] = useState("");
-  const [generationAnalysis, setGenerationAnalysis] = useState(null);
-  const [isLoadingGenerations, setIsLoadingGenerations] = useState(true);
-  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
-  const [generationError, setGenerationError] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedRunId, setSelectedRunId] =
+    useState("");
 
-  const requestJson = useCallback(
-    async (path, options = {}) => {
-      if (!accessToken) {
-        onLogout();
-        throw new Error("Administrator session is missing.");
-      }
+  const [dashboardData, setDashboardData] =
+    useState<ResearchDashboardData>(
+      EMPTY_DASHBOARD,
+    );
 
-      const response = await fetch(`${AUTH_API_BASE_URL}${path}`, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          ...(options.body ? { "Content-Type": "application/json" } : {}),
-          ...(options.headers || {}),
-        },
-      });
+  const [isLoadingRuns, setIsLoadingRuns] =
+    useState(true);
 
-      let result = {};
+  const [
+    isLoadingDashboard,
+    setIsLoadingDashboard,
+  ] = useState(false);
 
-      try {
-        result = await response.json();
-      } catch {
-        result = {};
-      }
+  const [dashboardError, setDashboardError] =
+    useState("");
 
-      if (response.status === 401) {
-        onLogout();
-        throw new Error("Your administrator session has expired.");
-      }
+  const [generations, setGenerations] =
+    useState<AdminGeneration[]>([]);
 
-      if (response.status === 403) {
-        onLogout();
-        throw new Error(
-          "Administrator access is required. A user token cannot open this dashboard."
-        );
-      }
+  const [
+    selectedGenerationId,
+    setSelectedGenerationId,
+  ] = useState("");
 
-      if (!response.ok) {
-        throw new Error(
-          result.detail ||
-            result.message ||
-            `Request failed with status ${response.status}`
-        );
-      }
-
-      return result;
-    },
-    [accessToken, onLogout]
+  const [
+    generationAnalysis,
+    setGenerationAnalysis,
+  ] = useState<GenerationAnalysis | null>(
+    null,
   );
 
-  const loadTrainingRuns = useCallback(async () => {
-    setIsLoadingRuns(true);
-    setDashboardError("");
+  const [
+    isLoadingGenerations,
+    setIsLoadingGenerations,
+  ] = useState(true);
 
-    try {
-      const result = await requestJson("/admin/research/runs");
-      const runs = Array.isArray(result.runs) ? result.runs : [];
+  const [
+    isLoadingAnalysis,
+    setIsLoadingAnalysis,
+  ] = useState(false);
 
-      setTrainingRuns(runs);
+  const [
+    generationError,
+    setGenerationError,
+  ] = useState("");
 
-      if (runs.length === 0) {
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+  const handleApiError = useCallback(
+    (
+      error: unknown,
+      fallbackMessage: string,
+    ): string => {
+      if (isAdminAuthorizationError(error)) {
+        onLogout();
+      }
+
+      return error instanceof Error
+        ? error.message
+        : fallbackMessage;
+    },
+    [onLogout],
+  );
+
+  const loadTrainingRuns =
+    useCallback(async () => {
+      if (!accessToken) {
+        onLogout();
+        return;
+      }
+
+      setIsLoadingRuns(true);
+      setDashboardError("");
+
+      try {
+        const result =
+          await getTrainingRuns(accessToken);
+
+        const runs = Array.isArray(result.runs)
+          ? result.runs
+          : [];
+
+        setTrainingRuns(runs);
+
+        if (runs.length === 0) {
+          setSelectedRunId("");
+          setDashboardData(EMPTY_DASHBOARD);
+          return;
+        }
+
+        setSelectedRunId((currentId) => {
+          const currentStillExists =
+            runs.some(
+              (run) =>
+                String(run.id) ===
+                String(currentId),
+            );
+
+          return currentStillExists
+            ? String(currentId)
+            : String(runs[0].id);
+        });
+      } catch (error) {
+        console.error(
+          "Load training runs error:",
+          error,
+        );
+
+        setTrainingRuns([]);
         setSelectedRunId("");
+        setDashboardData(EMPTY_DASHBOARD);
+
+        setDashboardError(
+          handleApiError(
+            error,
+            "Could not load training runs.",
+          ),
+        );
+      } finally {
+        setIsLoadingRuns(false);
+      }
+    }, [
+      accessToken,
+      handleApiError,
+      onLogout,
+    ]);
+
+  const loadDashboard = useCallback(
+    async (runId: string) => {
+      if (!runId) {
         setDashboardData(EMPTY_DASHBOARD);
         return;
       }
 
-      setSelectedRunId((currentId) => {
-        const currentStillExists = runs.some(
-          (run) => String(run.id) === String(currentId)
-        );
-
-        return currentStillExists
-          ? String(currentId)
-          : String(runs[0].id);
-      });
-    } catch (error) {
-      console.error("Load training runs error:", error);
-      setTrainingRuns([]);
-      setSelectedRunId("");
-      setDashboardData(EMPTY_DASHBOARD);
-      setDashboardError(error.message);
-    } finally {
-      setIsLoadingRuns(false);
-    }
-  }, [requestJson]);
-
-  const loadDashboard = useCallback(
-    async (runId) => {
-      if (!runId) {
-        setDashboardData(EMPTY_DASHBOARD);
+      if (!accessToken) {
+        onLogout();
         return;
       }
 
@@ -641,98 +695,184 @@ function AdminDashboardPage() {
       setDashboardError("");
 
       try {
-        const result = await requestJson(
-          `/admin/research/dashboard?run_id=${encodeURIComponent(runId)}`
-        );
+        const result =
+          await getResearchDashboard(
+            accessToken,
+            runId,
+          );
 
         setDashboardData({
-          run: result.run || null,
-          summary: result.summary || null,
-          epochs: Array.isArray(result.epochs) ? result.epochs : [],
-          tasks: Array.isArray(result.tasks) ? result.tasks : [],
+          run: result.run ?? null,
+          summary: result.summary ?? null,
+
+          epochs: Array.isArray(
+            result.epochs,
+          )
+            ? result.epochs
+            : [],
+
+          tasks: Array.isArray(result.tasks)
+            ? result.tasks
+            : [],
+
           taskSeries:
             result.taskSeries &&
-            typeof result.taskSeries === "object"
+            typeof result.taskSeries ===
+              "object"
               ? result.taskSeries
               : {},
-          batches: Array.isArray(result.batches) ? result.batches : [],
+
+          batches: Array.isArray(
+            result.batches,
+          )
+            ? result.batches
+            : [],
         });
       } catch (error) {
-        console.error("Load dashboard error:", error);
+        console.error(
+          "Load dashboard error:",
+          error,
+        );
+
         setDashboardData(EMPTY_DASHBOARD);
-        setDashboardError(error.message);
+
+        setDashboardError(
+          handleApiError(
+            error,
+            "Could not load dashboard data.",
+          ),
+        );
       } finally {
         setIsLoadingDashboard(false);
       }
     },
-    [requestJson]
+    [
+      accessToken,
+      handleApiError,
+      onLogout,
+    ],
   );
 
-  const loadGenerations = useCallback(async () => {
-    setIsLoadingGenerations(true);
-    setGenerationError("");
-
-    try {
-      const result = await requestJson("/admin/generations");
-      const loadedGenerations = Array.isArray(result.generations)
-        ? result.generations
-        : [];
-
-      setGenerations(loadedGenerations);
-
-      if (loadedGenerations.length === 0) {
-        setSelectedGenerationId("");
-        setGenerationAnalysis(null);
+  const loadGenerations =
+    useCallback(async () => {
+      if (!accessToken) {
+        onLogout();
         return;
       }
 
-      setSelectedGenerationId((currentId) => {
-        const currentStillExists = loadedGenerations.some(
-          (generation) =>
-            String(generation.id) === String(currentId)
-        );
-
-        return currentStillExists
-          ? String(currentId)
-          : String(loadedGenerations[0].id);
-      });
-    } catch (error) {
-      console.error("Load generations error:", error);
-      setGenerations([]);
-      setSelectedGenerationId("");
-      setGenerationAnalysis(null);
-      setGenerationError(error.message);
-    } finally {
-      setIsLoadingGenerations(false);
-    }
-  }, [requestJson]);
-
-  const loadGenerationAnalysis = useCallback(
-    async (generationId) => {
-      if (!generationId) {
-        setGenerationAnalysis(null);
-        return;
-      }
-
-      setIsLoadingAnalysis(true);
+      setIsLoadingGenerations(true);
       setGenerationError("");
 
       try {
-        const result = await requestJson(
-          `/admin/generations/${encodeURIComponent(generationId)}/analysis`
+        const result =
+          await getAdminGenerations(
+            accessToken,
+          );
+
+        const loadedGenerations =
+          Array.isArray(result.generations)
+            ? result.generations
+            : [];
+
+        setGenerations(loadedGenerations);
+
+        if (
+          loadedGenerations.length === 0
+        ) {
+          setSelectedGenerationId("");
+          setGenerationAnalysis(null);
+          return;
+        }
+
+        setSelectedGenerationId(
+          (currentId) => {
+            const currentStillExists =
+              loadedGenerations.some(
+                (generation) =>
+                  String(generation.id) ===
+                  String(currentId),
+              );
+
+            return currentStillExists
+              ? String(currentId)
+              : String(
+                  loadedGenerations[0].id,
+                );
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Load generations error:",
+          error,
         );
 
-        setGenerationAnalysis(result);
-      } catch (error) {
-        console.error("Load generation analysis error:", error);
+        setGenerations([]);
+        setSelectedGenerationId("");
         setGenerationAnalysis(null);
-        setGenerationError(error.message);
+
+        setGenerationError(
+          handleApiError(
+            error,
+            "Could not load generations.",
+          ),
+        );
       } finally {
-        setIsLoadingAnalysis(false);
+        setIsLoadingGenerations(false);
       }
-    },
-    [requestJson]
-  );
+    }, [
+      accessToken,
+      handleApiError,
+      onLogout,
+    ]);
+
+  const loadGenerationAnalysis =
+    useCallback(
+      async (generationId: string) => {
+        if (!generationId) {
+          setGenerationAnalysis(null);
+          return;
+        }
+
+        if (!accessToken) {
+          onLogout();
+          return;
+        }
+
+        setIsLoadingAnalysis(true);
+        setGenerationError("");
+
+        try {
+          const result =
+            await getGenerationAnalysis(
+              accessToken,
+              generationId,
+            );
+
+          setGenerationAnalysis(result);
+        } catch (error) {
+          console.error(
+            "Load generation analysis error:",
+            error,
+          );
+
+          setGenerationAnalysis(null);
+
+          setGenerationError(
+            handleApiError(
+              error,
+              "Could not load generation analysis.",
+            ),
+          );
+        } finally {
+          setIsLoadingAnalysis(false);
+        }
+      },
+      [
+        accessToken,
+        handleApiError,
+        onLogout,
+      ],
+    );
 
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
