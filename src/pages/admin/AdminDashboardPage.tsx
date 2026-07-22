@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -39,7 +40,7 @@ interface ChartSeriesItem {
   color: string;
 }
 
-type ChartDataRow = Record<string, unknown>;
+type ChartDataRow = object;
 
 interface MetricCardProps {
   label: string;
@@ -51,7 +52,7 @@ interface SectionHeadingProps {
   eyebrow: string;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }
 
 interface EmptyPanelProps {
@@ -69,9 +70,9 @@ interface ErrorPanelProps {
 }
 
 interface LineChartProps {
-  data: ChartDataRow[];
+  data: readonly ChartDataRow[];
   xKey: string;
-  series: ChartSeriesItem[];
+  series: readonly ChartSeriesItem[];
   emptyMessage: string;
 }
 
@@ -114,7 +115,14 @@ function isNumber(value: unknown): value is number {
     Number.isFinite(value)
   );
 }
-
+function getChartValue(
+  row: ChartDataRow,
+  key: string,
+): unknown {
+  return (
+    row as Record<string, unknown>
+  )[key];
+}
 function formatMetric(
   value: unknown,
   digits = 3,
@@ -327,7 +335,11 @@ function getStructureSections(
 
   return firstArray ?? [];
 }
-function MetricCard({ label, value, description }) {
+function MetricCard({
+  label,
+  value,
+  description,
+}: MetricCardProps) {
   return (
     <article className="admin-metric-card">
       <p>{label}</p>
@@ -337,7 +349,12 @@ function MetricCard({ label, value, description }) {
   );
 }
 
-function SectionHeading({ eyebrow, title, description, action }) {
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  action,
+}: SectionHeadingProps) {
   return (
     <div className="admin-section-heading">
       <div>
@@ -351,7 +368,10 @@ function SectionHeading({ eyebrow, title, description, action }) {
   );
 }
 
-function EmptyPanel({ title, message }) {
+function EmptyPanel({
+  title,
+  message,
+}: EmptyPanelProps) {
   return (
     <div className="admin-state-panel">
       <h3>{title}</h3>
@@ -360,35 +380,53 @@ function EmptyPanel({ title, message }) {
   );
 }
 
-function LoadingPanel({ message }) {
+function LoadingPanel({
+  message,
+}: LoadingPanelProps) {
   return (
     <div className="admin-state-panel">
-      <div className="admin-spinner" aria-hidden="true"></div>
+      <div
+        className="admin-spinner"
+        aria-hidden="true"
+      />
+
       <p>{message}</p>
     </div>
   );
 }
 
-function ErrorPanel({ message, onRetry }) {
+function ErrorPanel({
+  message,
+  onRetry,
+}: ErrorPanelProps) {
   return (
     <div className="admin-state-panel admin-error-panel">
       <h3>Could not load data</h3>
       <p>{message}</p>
 
       {onRetry && (
-        <button type="button" onClick={onRetry}>
+        <button
+          type="button"
+          onClick={onRetry}
+        >
           Try again
         </button>
       )}
     </div>
   );
 }
-
-function LineChart({ data, xKey, series, emptyMessage }) {
+function LineChart({
+  data,
+  xKey,
+  series,
+  emptyMessage,
+}: LineChartProps) {
   const chart = useMemo(() => {
-    const usableData = (data || []).filter((item) =>
-      series.some(({ key }) => isNumber(item?.[key]))
-    );
+    const usableData = data.filter((item) =>
+  series.some(({ key }) =>
+    isNumber(getChartValue(item, key)),
+  ),
+);
 
     if (usableData.length === 0) {
       return null;
@@ -403,9 +441,14 @@ function LineChart({ data, xKey, series, emptyMessage }) {
       left: 68,
     };
 
-    const numericValues = usableData.flatMap((item) =>
-      series.map(({ key }) => item[key]).filter(isNumber)
-    );
+   const numericValues = usableData.flatMap(
+  (item) =>
+    series
+      .map(({ key }) =>
+        getChartValue(item, key),
+      )
+      .filter(isNumber),
+);
 
     let minimumY = Math.min(...numericValues);
     let maximumY = Math.max(...numericValues);
@@ -416,7 +459,10 @@ function LineChart({ data, xKey, series, emptyMessage }) {
     }
 
     const xValues = usableData.map((item, index) => {
-      const value = item?.[xKey];
+      const value = getChartValue(
+  item,
+  xKey,
+);
       return isNumber(value) ? value : index + 1;
     });
 
@@ -431,18 +477,21 @@ function LineChart({ data, xKey, series, emptyMessage }) {
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
 
-    const xPosition = (value) =>
+    const xPosition = (value: number): number =>
       padding.left +
       ((value - minimumX) / (maximumX - minimumX)) * plotWidth;
 
-    const yPosition = (value) =>
+    const yPosition = (value: number): number =>
       padding.top +
       ((maximumY - value) / (maximumY - minimumY)) * plotHeight;
 
     const paths = series.map((item) => {
       const points = usableData
         .map((row, index) => {
-          const yValue = row?.[item.key];
+         const yValue = getChartValue(
+  row,
+  item.key,
+);
 
           if (!isNumber(yValue)) {
             return null;
@@ -580,7 +629,7 @@ function ProtectedAudioPlayer({
   filePath,
   accessToken,
   onUnauthorized,
-}) {
+}: ProtectedAudioPlayerProps) {
   const [audioUrl, setAudioUrl] = useState("");
   const [audioError, setAudioError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -627,10 +676,18 @@ function ProtectedAudioPlayer({
           setAudioUrl(objectUrl);
         }
       } catch (error) {
-        if (error.name !== "AbortError" && isActive) {
-          setAudioError(error.message || "Audio playback is unavailable.");
-        }
-      } finally {
+  const isAbortError =
+    error instanceof DOMException &&
+    error.name === "AbortError";
+
+  if (!isAbortError && isActive) {
+    setAudioError(
+      error instanceof Error
+        ? error.message
+        : "Audio playback is unavailable.",
+    );
+  }
+}finally {
         if (isActive) {
           setIsLoading(false);
         }
@@ -1119,7 +1176,10 @@ function AdminDashboardPage() {
   const isGenerationLoading =
     isLoadingGenerations || isLoadingAnalysis;
 
-  const handleDownload = async (filePath, fallbackName) => {
+const handleDownload = async (
+  filePath: string | null | undefined,
+  fallbackName: string,
+): Promise<void> => {
     if (!filePath) return;
 
     try {
@@ -1154,8 +1214,10 @@ function AdminDashboardPage() {
     } catch (error) {
       console.error("Admin file download error:", error);
       window.alert(
-        error.message || "Could not download the generated file."
-      );
+  error instanceof Error
+    ? error.message
+    : "Could not download the generated file.",
+);
     }
   };
 
@@ -1856,35 +1918,44 @@ function AdminDashboardPage() {
                 ) : (
                   <div className="admin-structure-grid">
                     {structureSections.map((section, index) => {
-                      const objectSection =
-                        section && typeof section === "object"
-                          ? section
-                          : { value: section };
+  const objectSection: Record<string, unknown> =
+    section !== null &&
+    typeof section === "object" &&
+    !Array.isArray(section)
+      ? (section as Record<string, unknown>)
+      : {
+          value: section,
+        };
 
-                      const sectionName =
-                        objectSection.name ||
-                        objectSection.title ||
-                        objectSection.sectionName ||
-                        objectSection.label ||
-                        `Section ${index + 1}`;
+  const sectionName = String(
+    objectSection.name ??
+      objectSection.title ??
+      objectSection.sectionName ??
+      objectSection.label ??
+      `Section ${index + 1}`,
+  );
 
-                      const sectionDescription =
-                        objectSection.description ||
-                        objectSection.summary ||
-                        objectSection.purpose ||
-                        objectSection.value ||
-                        JSON.stringify(objectSection);
+  const sectionDescription =
+    objectSection.description ??
+    objectSection.summary ??
+    objectSection.purpose ??
+    objectSection.value ??
+    objectSection;
 
-                      return (
-                        <div key={`${sectionName}-${index}`}>
-                          <span>
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <h3>{sectionName}</h3>
-                          <p>{formatValue(sectionDescription)}</p>
-                        </div>
-                      );
-                    })}
+  return (
+    <div key={`${sectionName}-${index}`}>
+      <span>
+        {String(index + 1).padStart(2, "0")}
+      </span>
+
+      <h3>{sectionName}</h3>
+
+      <p>
+        {formatValue(sectionDescription)}
+      </p>
+    </div>
+  );
+})}
                   </div>
                 )}
               </article>
