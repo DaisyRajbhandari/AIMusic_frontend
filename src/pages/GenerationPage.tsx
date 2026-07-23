@@ -33,6 +33,7 @@ import RelatedTools from "@/components/RelatedTools";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageMetadata } from "@/hooks/usePageMetadata";
 import { AUTH_API_BASE_URL } from "@/lib/api/authApi";
+import { PLANNER_API_BASE_URL } from "@/lib/api/plannerApi";
 import {
   createGeneration,
   GenerationApiError,
@@ -124,7 +125,7 @@ function buildGenerationFileUrl(
   }
 
   const cleanBaseUrl =
-    AUTH_API_BASE_URL.replace(/\/+$/, "");
+    PLANNER_API_BASE_URL.replace(/\/+$/, "");
 
   const cleanPath =
     filePath.replace(/^\/+/, "");
@@ -137,7 +138,8 @@ function isExternalFileUrl(
 ): boolean {
   return (
     /^https?:\/\//i.test(fileUrl) &&
-    !fileUrl.startsWith(AUTH_API_BASE_URL)
+    !fileUrl.startsWith(AUTH_API_BASE_URL) &&
+    !fileUrl.startsWith(PLANNER_API_BASE_URL)
   );
 }
 

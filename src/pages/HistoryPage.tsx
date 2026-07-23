@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageMetadata } from "@/hooks/usePageMetadata";
 import { AUTH_API_BASE_URL } from "@/lib/api/authApi";
+import { PLANNER_API_BASE_URL } from "@/lib/api/plannerApi";
 
 interface GenerationSection {
   name?: string;
@@ -68,7 +69,7 @@ function buildFileUrl(filePath: string): string {
   }
 
   const cleanBase =
-    AUTH_API_BASE_URL.replace(/\/+$/, "");
+    PLANNER_API_BASE_URL.replace(/\/+$/, "");
   const cleanPath =
     filePath.replace(/^\/+/, "");
 
