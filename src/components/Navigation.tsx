@@ -1,4 +1,4 @@
-import { Guitar, Layers, Disc, BookOpen, Music, Bot, Wand2, Download, Menu, Activity, GaugeCircle, Trophy } from "lucide-react";
+import { Guitar, Layers, Disc, BookOpen, Music, Bot, Wand2, Download, Menu, Activity, GaugeCircle, Trophy, History as HistoryIcon,} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -7,15 +7,23 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useBackendHealth } from "@/hooks/useBackendHealth";
-import { useTheme } from "@/contexts/ThemeContext";
 
+import { useAuth } from "@/contexts/AuthContext";
 const Navigation = () => {
+  const {
+  user,
+  accessToken,
+} = useAuth();
+
+const isLoggedIn = Boolean(
+  user && accessToken,
+);
   const [deferredPrompt, setDeferredPrompt] = useState<unknown>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const healthStatus = useBackendHealth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  
 
   useEffect(() => {
     // Check if already installed
@@ -185,6 +193,19 @@ const Navigation = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {isLoggedIn && (
+  <Button
+    asChild
+    size="sm"
+    variant="outline"
+    className="hidden h-8 items-center gap-2 rounded-lg border-white/10 bg-white/[0.04] px-3.5 text-xs font-semibold text-white hover:bg-white/10 hover:text-white sm:flex"
+  >
+    <Link to="/history">
+      <HistoryIcon className="h-3.5 w-3.5" />
+      <span>My Music</span>
+    </Link>
+  </Button>
+)}
             {/* Install Button */}
             {!isInstalled ? (
               <Button
@@ -226,26 +247,48 @@ const Navigation = () => {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col gap-2 pt-6">
-                  {navItems.map((item) => {
-                    const isActive = location.pathname.startsWith(item.path);
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive
-                          ? "text-white bg-white/10 border border-white/10"
-                          : "text-muted-foreground hover:text-white hover:bg-white/5"
-                          }`}
-                      >
-                        <item.icon className="w-5 h-5" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                  
+  {navItems.map((item) => {
+    const isActive =
+      location.pathname.startsWith(
+        item.path,
+      );
 
-                </nav>
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={() =>
+          setMobileMenuOpen(false)
+        }
+        className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all ${
+          isActive
+            ? "border border-white/10 bg-white/10 text-white"
+            : "text-muted-foreground hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        <item.icon className="h-5 w-5" />
+        <span>{item.label}</span>
+      </Link>
+    );
+  })}
+
+  {isLoggedIn && (
+    <Link
+      to="/history"
+      onClick={() =>
+        setMobileMenuOpen(false)
+      }
+      className={
+        location.pathname === "/history"
+          ? "flex items-center gap-3 rounded-lg border border-white/10 bg-white/10 px-4 py-3 text-sm font-medium text-white"
+          : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-all hover:bg-white/5 hover:text-white"
+      }
+    >
+      <HistoryIcon className="h-5 w-5" />
+      <span>My Music</span>
+    </Link>
+  )}
+</nav>
               </SheetContent>
             </Sheet>
           </div>

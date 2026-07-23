@@ -43,6 +43,9 @@ const AdminLoginPage = lazy(
 const AdminDashboardPage = lazy(
   () => import("./pages/admin/AdminDashboardPage"),
 );
+const HistoryPage = lazy(
+  () => import("./pages/HistoryPage"),
+);
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 const BlogListPage = lazy(() => import("./pages/BlogListPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
@@ -370,6 +373,22 @@ const App = () => {
         <PageWrapper>
           <main id="main-content">
             <GenerationPage />
+          </main>
+        </PageWrapper>
+      </Suspense>
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/history"
+  element={
+    <ProtectedRoute>
+      <Suspense
+        fallback={<RouteFallback />}
+      >
+        <PageWrapper>
+          <main id="main-content">
+            <HistoryPage />
           </main>
         </PageWrapper>
       </Suspense>
