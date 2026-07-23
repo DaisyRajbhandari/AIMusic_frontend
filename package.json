@@ -39,7 +39,11 @@
     "prerender": "npm run build:prerender",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:frontend": "vite",
+    "dev:auth": "\".\\backend\\venv\\Scripts\\python.exe\" -m uvicorn main:app --app-dir backend/auth_backend --reload --port 8000",
+    "dev:planner": "\".\\backend\\venv\\Scripts\\python.exe\" -m uvicorn planner_service:app --app-dir backend --reload --port 8001",
+    "dev:all": "concurrently -k -n FRONTEND,AUTH,PLANNER \"npm:dev:frontend\" \"npm:dev:auth\" \"npm:dev:planner\""
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
@@ -114,6 +118,7 @@
     "@vitejs/plugin-react-swc": "^3.11.0",
     "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.3",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
