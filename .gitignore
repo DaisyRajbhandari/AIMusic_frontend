@@ -39,3 +39,16 @@ backend/generated/*.mid
 backend/generated/*.wav
 backend/generated/*.mp3
 !backend/generated/.gitkeep
+# Authentication backend local files
+backend/auth_backend/.env
+backend/auth_backend/*.db
+backend/auth_backend/__pycache__/
+backend/auth_backend/main_before_*.py
+backend/auth_backend/*backup*.db
+backend_backup_*/
+
+# Generated music
+backend/generated/
+
+# Authentication backend local files
+backend/auth_backend/*backup*.py
