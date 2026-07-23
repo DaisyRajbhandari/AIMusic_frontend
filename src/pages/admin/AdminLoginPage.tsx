@@ -32,9 +32,6 @@ const AdminLoginPage = () => {
   const [password, setPassword] =
     useState("");
 
-  const [rememberMe, setRememberMe] =
-    useState(true);
-
   const [errorMessage, setErrorMessage] =
     useState("");
 
@@ -90,7 +87,7 @@ const AdminLoginPage = () => {
           email: cleanedEmail,
           password,
         },
-        rememberMe,
+        false,
       );
 
       toast.success(
@@ -268,25 +265,6 @@ const AdminLoginPage = () => {
                   className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-violet-400/70 focus:ring-4 focus:ring-violet-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
-
-              <label className="flex cursor-pointer items-center gap-3 text-sm text-white/60">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) =>
-                    setRememberMe(
-                      event.target.checked,
-                    )
-                  }
-                  disabled={isSubmitting}
-                  className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-500"
-                />
-
-                <span>
-                  Keep administrator session on
-                  this device
-                </span>
-              </label>
 
               {errorMessage && (
                 <div

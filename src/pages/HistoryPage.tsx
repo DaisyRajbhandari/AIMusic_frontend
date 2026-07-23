@@ -16,6 +16,9 @@ import {
   Loader2,
   Music2,
   RefreshCw,
+  RotateCcw,
+  Search,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -103,6 +106,31 @@ function formatDate(
   return date.toLocaleString();
 }
 
+function getTimestamp(
+  value: number | string | null | undefined,
+): number {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return value < 10_000_000_000
+      ? value * 1000
+      : value;
+  }
+
+  const timestamp =
+    new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+}
+
 function getStatusClasses(status: string): string {
   switch (status.toLowerCase()) {
     case "completed":
@@ -181,6 +209,23 @@ export default function HistoryPage() {
     downloadingFile,
     setDownloadingFile,
   ] = useState("");
+
+  const [
+    deletingGenerationId,
+    setDeletingGenerationId,
+  ] = useState<number | null>(null);
+
+  const [
+    searchQuery,
+    setSearchQuery,
+  ] = useState("");
+
+  const [
+    sortOrder,
+    setSortOrder,
+  ] = useState<"newest" | "oldest">(
+    "newest",
+  );
 
   const handleSessionExpired =
     useCallback(() => {
@@ -283,19 +328,71 @@ export default function HistoryPage() {
 
   const filteredGenerations =
     useMemo(() => {
-      if (selectedFilter === "all") {
-        return generations;
-      }
+      const normalizedSearch =
+        searchQuery
+          .trim()
+          .toLowerCase();
 
-      return generations.filter(
-        (generation) =>
-          generation.status
-            .toLowerCase() ===
-          selectedFilter,
-      );
+      const visibleGenerations =
+        generations.filter(
+          (generation) => {
+            const matchesStatus =
+              selectedFilter === "all" ||
+              generation.status
+                .toLowerCase() ===
+                selectedFilter;
+
+            if (!matchesStatus) {
+              return false;
+            }
+
+            if (!normalizedSearch) {
+              return true;
+            }
+
+            const searchableText = [
+              generation.title,
+              generation.prompt,
+              generation.fullPrompt,
+              generation.mood,
+              generation.genre,
+              generation.tempo,
+              generation.instrument,
+              generation.structure,
+              generation.status,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+            return searchableText.includes(
+              normalizedSearch,
+            );
+          },
+        );
+
+      return [
+        ...visibleGenerations,
+      ].sort((first, second) => {
+        const firstDate =
+          getTimestamp(
+            first.createdAt,
+          );
+
+        const secondDate =
+          getTimestamp(
+            second.createdAt,
+          );
+
+        return sortOrder === "newest"
+          ? secondDate - firstDate
+          : firstDate - secondDate;
+      });
     }, [
       generations,
+      searchQuery,
       selectedFilter,
+      sortOrder,
     ]);
 
   const completedCount =
@@ -420,6 +517,122 @@ export default function HistoryPage() {
         );
       } finally {
         setDownloadingFile("");
+      }
+    };
+
+  const handleRegenerateGeneration = (
+    generation: GenerationRecord,
+  ) => {
+    const sourcePrompt = (
+      generation.fullPrompt ||
+      generation.prompt ||
+      ""
+    ).trim();
+
+    if (!sourcePrompt) {
+      setErrorMessage(
+        "This generation does not contain a reusable prompt.",
+      );
+
+      return;
+    }
+
+    navigate(
+      `/generation?prompt=${encodeURIComponent(
+        sourcePrompt,
+      )}`,
+    );
+  };
+
+  const handleDeleteGeneration =
+    async (
+      generation: GenerationRecord,
+    ) => {
+      if (!accessToken) {
+        handleSessionExpired();
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `Delete generation #${generation.id}? ` +
+            "This removes the record from your history.",
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setDeletingGenerationId(
+        generation.id,
+      );
+
+      setErrorMessage("");
+
+      try {
+        const response = await fetch(
+          `${AUTH_API_BASE_URL}/generations/${generation.id}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+          },
+        );
+
+        let result: unknown = {};
+
+        try {
+          result =
+            await response.json();
+        } catch {
+          result = {};
+        }
+
+        if (
+          response.status === 401 ||
+          response.status === 403
+        ) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (!response.ok) {
+          const errorResult =
+            result as {
+              detail?: string;
+              message?: string;
+            };
+
+          throw new Error(
+            errorResult.detail ||
+              errorResult.message ||
+              `Delete failed (${response.status}).`,
+          );
+        }
+
+        setGenerations(
+          (currentGenerations) =>
+            currentGenerations.filter(
+              (currentGeneration) =>
+                currentGeneration.id !==
+                generation.id,
+            ),
+        );
+      } catch (error) {
+        console.error(
+          "Generation delete error:",
+          error,
+        );
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Could not delete the generation.",
+        );
+      } finally {
+        setDeletingGenerationId(null);
       }
     };
 
@@ -548,6 +761,45 @@ export default function HistoryPage() {
               </button>
             ))}
           </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchQuery(
+                    event.target.value,
+                  )
+                }
+                placeholder="Search prompts, genres, moods..."
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-white/25 focus:bg-white/[0.05]"
+              />
+            </div>
+
+            <select
+              value={sortOrder}
+              onChange={(event) =>
+                setSortOrder(
+                  event.target.value as
+                    | "newest"
+                    | "oldest",
+                )
+              }
+              className="h-11 rounded-xl border border-white/10 bg-[#0a0a0a] px-4 text-sm text-white outline-none focus:border-white/25"
+              aria-label="Sort generation history"
+            >
+              <option value="newest">
+                Newest first
+              </option>
+
+              <option value="oldest">
+                Oldest first
+              </option>
+            </select>
+          </div>
         </div>
 
         {errorMessage && (
@@ -638,7 +890,7 @@ export default function HistoryPage() {
                           </p>
                         </div>
 
-                        <div className="grid shrink-0 grid-cols-2 gap-2">
+                        <div className="grid shrink-0 grid-cols-2 gap-2 md:grid-cols-4">
                           <Button
                             type="button"
                             variant="outline"
@@ -679,6 +931,42 @@ export default function HistoryPage() {
                           >
                             <FileAudio className="mr-2 h-4 w-4" />
                             Audio
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              handleRegenerateGeneration(
+                                generation,
+                              )
+                            }
+                            className="border-white/10 bg-white/[0.03] text-white hover:bg-white/10"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Regenerate
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={
+                              deletingGenerationId ===
+                              generation.id
+                            }
+                            onClick={() =>
+                              void handleDeleteGeneration(
+                                generation,
+                              )
+                            }
+                            className="border-red-400/20 bg-red-500/5 text-red-200 hover:bg-red-500/15"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+
+                            {deletingGenerationId ===
+                            generation.id
+                              ? "Deleting..."
+                              : "Delete"}
                           </Button>
                         </div>
                       </div>

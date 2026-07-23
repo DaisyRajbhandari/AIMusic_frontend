@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 import hashlib
 import hmac
 import json
@@ -26,6 +27,97 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 DB_NAME = str(BASE_DIR / "synestra.db")
+
+GENERATED_FILES_DIR = (
+    BASE_DIR.parent / "generated"
+).resolve()
+
+
+def delete_generated_file(
+    file_url: str | None,
+) -> dict:
+    if not file_url:
+        return {
+            "deleted": False,
+            "filename": None,
+            "reason": "No file path stored",
+        }
+
+    parsed_url = urlparse(
+        str(file_url)
+    )
+
+    filename = Path(
+        unquote(parsed_url.path)
+    ).name
+
+    if not filename:
+        return {
+            "deleted": False,
+            "filename": None,
+            "reason": "Invalid filename",
+        }
+
+    allowed_extensions = {
+        ".mid",
+        ".midi",
+        ".wav",
+    }
+
+    if (
+        Path(filename).suffix.lower()
+        not in allowed_extensions
+    ):
+        return {
+            "deleted": False,
+            "filename": filename,
+            "reason": (
+                "Unsupported generated-file "
+                "extension"
+            ),
+        }
+
+    target_path = (
+        GENERATED_FILES_DIR / filename
+    ).resolve()
+
+    if (
+        target_path.parent
+        != GENERATED_FILES_DIR
+    ):
+        return {
+            "deleted": False,
+            "filename": filename,
+            "reason": "Unsafe file path",
+        }
+
+    if not target_path.exists():
+        return {
+            "deleted": False,
+            "filename": filename,
+            "reason": (
+                "File was already missing"
+            ),
+        }
+
+    if not target_path.is_file():
+        return {
+            "deleted": False,
+            "filename": filename,
+            "reason": (
+                "Generated path is not a file"
+            ),
+        }
+
+    target_path.unlink()
+
+    return {
+        "deleted": True,
+        "filename": filename,
+        "reason": None,
+    }
+
+
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
@@ -1798,6 +1890,111 @@ def get_generations(
 
     return {
         "generations": generations
+    }
+
+
+
+@app.delete("/generations/{generation_id}")
+def delete_user_generation(
+    generation_id: int,
+    current_user=Depends(get_current_user),
+):
+    user_email = normalize_email(
+        current_user["email"]
+    )
+
+    connection = connect_db()
+    cursor = connection.cursor()
+
+    generation = cursor.execute(
+        """
+        SELECT
+            g.id,
+            COALESCE(
+                ga.midi_file_path,
+                g.midi_file_path
+            ) AS midi_file_path,
+            ga.audio_file_path
+                AS audio_file_path
+        FROM generations AS g
+        LEFT JOIN generation_analysis AS ga
+            ON ga.generation_id = g.id
+        WHERE g.id = ?
+          AND LOWER(g.user_email) = ?
+        """,
+        (
+            generation_id,
+            user_email,
+        ),
+    ).fetchone()
+
+    if generation is None:
+        connection.close()
+
+        raise HTTPException(
+            status_code=
+                status.HTTP_404_NOT_FOUND,
+            detail="Generation not found",
+        )
+
+    midi_file_path = (
+        generation["midi_file_path"]
+    )
+
+    audio_file_path = (
+        generation["audio_file_path"]
+    )
+
+    cursor.execute(
+        """
+        DELETE FROM generations
+        WHERE id = ?
+          AND LOWER(user_email) = ?
+        """,
+        (
+            generation_id,
+            user_email,
+        ),
+    )
+
+    connection.commit()
+    connection.close()
+
+    cleanup_results = []
+
+    for file_path in {
+        midi_file_path,
+        audio_file_path,
+    }:
+        if not file_path:
+            continue
+
+        try:
+            cleanup_results.append(
+                delete_generated_file(
+                    file_path
+                )
+            )
+        except OSError as error:
+            cleanup_results.append(
+                {
+                    "deleted": False,
+                    "filename": Path(
+                        urlparse(
+                            str(file_path)
+                        ).path
+                    ).name,
+                    "reason": str(error),
+                }
+            )
+
+    return {
+        "message": (
+            "Generation deleted "
+            "successfully"
+        ),
+        "generationId": generation_id,
+        "fileCleanup": cleanup_results,
     }
 
 

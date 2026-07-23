@@ -52,3 +52,8 @@ backend/generated/
 
 # Authentication backend local files
 backend/auth_backend/*backup*.py
+# Local review and backup files
+*_feature_files.txt
+*_before_*.tsx
+*_before_*.py
+vite.config.ts.timestamp-*.mjs

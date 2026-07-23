@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { AUTH_API_BASE_URL } from "@/lib/api/authApi";
+import { PLANNER_API_BASE_URL } from "@/lib/api/plannerApi";
 import {
   getAdminGenerations,
   getGenerationAnalysis,
@@ -284,7 +284,7 @@ function buildFileUrl(
   }
 
   const cleanBaseUrl =
-    AUTH_API_BASE_URL.replace(/\/$/, "");
+    PLANNER_API_BASE_URL.replace(/\/$/, "");
 
   const cleanPath =
     filePath.replace(/^\//, "");
